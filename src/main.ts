@@ -36,6 +36,7 @@ type View = 'practice' | 'words' | 'settings'
 interface ReviewState {
   entryId: string
   isNew: boolean
+  phase: 'learn' | 'recall'
   revealed: boolean
   practiceDone: boolean
 }
@@ -153,7 +154,7 @@ function renderReview(): string {
       <section class="review-intro panel">
         <div class="section-kicker">${languageLabel(language)} practice</div>
         <h1>${noMore ? 'Your queue is clear.' : 'Ready for the next word?'}</h1>
-        <p>${noMore ? 'There are no due reviews, and today’s new-word slot is already used or empty.' : 'Recall the missing word from the sentence. Reveal it only when you have committed to an answer.'}</p>
+        <p>${noMore ? 'There are no due reviews, and today’s new-word slot is already used or empty.' : 'Study the word information first. After that, test yourself with the sentence gap.'}</p>
         <button class="button button-primary button-large" data-action="start-review" type="button" ${noMore ? 'disabled' : ''}>${noMore ? 'Nothing due' : 'Start next review'}</button>
         ${notice ? `<p class="notice" role="status">${escapeHtml(notice)}</p>` : ''}
       </section>
@@ -165,6 +166,27 @@ function renderReview(): string {
   }
 
   const activeReview = review
+  if (activeReview.phase === 'learn') {
+    const example = currentEntry.example.replace('{{gap}}', currentEntry.term)
+    return `
+      <section class="review-card learn-card panel" aria-labelledby="review-title">
+        <div class="review-meta">
+          <span class="pill">new today</span>
+          <span>${currentEntry.partOfSpeech}</span>
+        </div>
+        <p class="section-kicker">Learn the word</p>
+        <h1 id="review-title" class="learn-term">${escapeHtml(currentEntry.term)}</h1>
+        ${currentEntry.counterpart ? `<p class="counterpart">Useful counterpart: <strong>${escapeHtml(currentEntry.counterpart)}</strong></p>` : ''}
+        <div class="learn-information">
+          <ul class="definition-list">${currentEntry.definitions.map((definition) => `<li>${escapeHtml(definition)}</li>`).join('')}</ul>
+          ${currentEntry.etymology ? `<p class="etymology"><strong>Origin:</strong> ${escapeHtml(currentEntry.etymology)}</p>` : ''}
+          <p class="learning-example"><strong>Example:</strong> ${escapeHtml(example)}</p>
+        </div>
+        <div class="reveal-row"><span class="muted">Take a moment to read the meaning and example.</span><button class="button button-primary" data-action="begin-recall" type="button">I learned this word</button></div>
+      </section>
+    `
+  }
+
   const progress = state.progress[currentEntry.id]
   const practice = progress?.practice
   return `
@@ -331,8 +353,14 @@ function startReview(): void {
     render()
     return
   }
-  if (selection.isNew) persist(beginNewWord(state, language, selection.entry.id, Date.now()))
-  review = { entryId: selection.entry.id, isNew: selection.isNew, revealed: false, practiceDone: false }
+  review = { entryId: selection.entry.id, isNew: selection.isNew, phase: selection.isNew ? 'learn' : 'recall', revealed: false, practiceDone: false }
+  render()
+}
+
+function beginRecall(): void {
+  if (!review || !review.isNew || review.phase !== 'learn') return
+  persist(beginNewWord(state, language, review.entryId, Date.now()))
+  review.phase = 'recall'
   render()
 }
 
@@ -653,6 +681,7 @@ app.addEventListener('click', (event) => {
     review = null
     render()
   } else if (action === 'start-review') startReview()
+  else if (action === 'begin-recall') beginRecall()
   else if (action === 'reveal' && review) {
     review.revealed = true
     render()

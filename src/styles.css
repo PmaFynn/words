@@ -86,6 +86,11 @@ input::placeholder, textarea::placeholder { color: #aaa59a; }
 .stats-strip strong { color: var(--accent-dark); font-size: 1.6rem; font-weight: 500; }
 .stats-strip span { margin-top: .15rem; color: var(--muted); font: .68rem/1.2 ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .review-card { min-height: 31rem; }
+.learn-card { display: flex; flex-direction: column; }
+.learn-term { margin-bottom: 1.15rem; color: var(--accent-dark); font-size: clamp(2.6rem, 6vw, 5rem); }
+.learn-information { max-width: 42rem; margin-bottom: auto; padding: 1rem 1.15rem; background: #edf2e8; border-left: 4px solid var(--green); }
+.learn-information .definition-list { margin-top: 0; }
+.learning-example { margin: 1rem 0 0; color: var(--muted); }
 .review-intro { min-height: 26rem; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
 .review-intro p { max-width: 32rem; color: var(--muted); }
 .review-intro .button { margin-top: 1rem; }
