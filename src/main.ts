@@ -73,15 +73,17 @@ function getEntry(entryId: string): WordEntry | undefined {
   return state.entries.find((entry) => entry.id === entryId)
 }
 
-function persist(nextState: LearningState): void {
+function persist(nextState: LearningState): boolean {
   state = nextState
-  if (!saveState(state)) notice = 'Progress could not be saved in this browser.'
+  const saved = saveState(state)
+  if (!saved) notice = 'Progress could not be saved in this browser.'
   if (syncAccount) {
     void uploadSyncedState(state).catch(() => {
       notice = 'Saved here, but cloud sync needs attention.'
       render()
     })
   }
+  return saved
 }
 
 function renderGate(error = ''): void {
@@ -235,7 +237,7 @@ function renderCustomForm(): string {
   const field = (value: string | undefined): string => escapeHtml(value ?? '')
   const definitions = entry?.definitions.join('\n')
   return `
-    <section class="panel custom-form-panel">
+    <section id="word-editor" class="panel custom-form-panel">
       <div class="section-heading"><div><p class="section-kicker">${isEditing ? 'Edit' : 'Add to'} ${languageLabel(language)}</p><h2>${isEditing ? `Edit ${field(entry?.term)}` : 'Bring in a word'}</h2></div>${isEditing ? '' : '<span class="badge-priority">high priority</span>'}</div>
       <form data-form="custom" ${entry ? `data-entry-id="${field(entry.id)}"` : ''} class="custom-form">
         <div class="form-row form-row-wide"><label for="custom-term">Word</label><div class="input-with-button"><input id="custom-term" name="term" value="${field(entry?.term)}" required placeholder="e.g. equivocal" /><button class="button button-secondary" data-action="lookup" type="button">Look up</button></div></div>
@@ -452,7 +454,7 @@ function saveWordEdit(form: HTMLFormElement, entryId: string): void {
   }
 
   const definitions = fieldValue(form, 'definitions').split('\n').map((item) => item.trim()).filter(Boolean)
-  persist(updateWordEntry(state, entryId, (entry) => ({
+  const saved = persist(updateWordEntry(state, entryId, (entry) => ({
     ...entry,
     term,
     counterpart: fieldValue(form, 'counterpart') || undefined,
@@ -464,6 +466,10 @@ function saveWordEdit(form: HTMLFormElement, entryId: string): void {
     acceptedAnswers: [term],
     source: entry.source ? { ...entry.source, modified: true } : { label: 'Personal edit', modified: true },
   })))
+  if (!saved) {
+    render()
+    return
+  }
   editingEntryId = null
   notice = `${term} updated.`
   render()
@@ -513,6 +519,13 @@ function addWord(form: HTMLFormElement): void {
   notice = `${term} added with high priority.`
   view = 'words'
   render()
+}
+
+function focusWordEditor(): void {
+  requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>('#word-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.querySelector<HTMLInputElement>('#custom-term')?.focus({ preventScroll: true })
+  })
 }
 
 async function submitGate(form: HTMLFormElement): Promise<void> {
@@ -692,6 +705,7 @@ app.addEventListener('click', (event) => {
     view = 'words'
     notice = ''
     render()
+    focusWordEditor()
   }
   else if (action === 'cancel-edit') {
     editingEntryId = null
